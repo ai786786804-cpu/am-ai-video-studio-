@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.database import SessionLocal
 from app.models import Project, RenderJob
-from app.services.script_service import ffmpeg_available, build_project_render
+from app.services.script_service import build_project_render, ffmpeg_available
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -49,8 +49,8 @@ def create_render_job(project_id: int, db: Session = Depends(get_db)) -> dict:
 
     if not ffmpeg_available():
         job.status = "failed"
-        job.error_message = "FFmpeg is not installed or not executable in this environment."
         job.progress = 0
+        job.error_message = "FFmpeg is not installed or not executable in this environment."
         db.commit()
         return {"status": "failed", "job_id": job.id, "error": job.error_message}
 
@@ -64,8 +64,8 @@ def create_render_job(project_id: int, db: Session = Depends(get_db)) -> dict:
         return {"status": "completed", "job_id": job.id, "output_path": output}
     except Exception as exc:  # pragma: no cover
         job.status = "failed"
-        job.error_message = str(exc)
         job.progress = 0
+        job.error_message = str(exc)
         db.commit()
         return {"status": "failed", "job_id": job.id, "error": str(exc)}
 

@@ -5,40 +5,29 @@ from typing import Dict, List
 
 
 def build_scene_breakdown(script: str, style: str) -> List[Dict[str, str | int | list[int]]]:
-    clean = script.strip()
-    if not clean:
+    if not script or not script.strip():
         return []
 
-    paragraphs = [p.strip() for p in re.split(r"\n\s*\n+", clean) if p.strip()]
+    paragraphs = [p.strip() for p in re.split(r"\n\s*\n+", script.strip()) if p.strip()]
     if not paragraphs:
-        paragraphs = [clean]
+        paragraphs = [script.strip()]
 
     scenes: List[Dict[str, str | int | list[int]]] = []
     for idx, paragraph in enumerate(paragraphs, start=1):
-        sentences = re.split(r"(?<=[.!?])\s+", paragraph)
-        narration = " ".join(s.strip() for s in sentences if s.strip())
-        if not narration:
-            continue
+        clean_paragraph = " ".join(re.split(r"\s+", paragraph))
+        narration = clean_paragraph[:220]
         scenes.append(
             {
                 "title": f"Scene {idx}",
-                "narration": narration[:180],
-                "visual_description": f"{style}-style visual treatment for the story beat: {narration[:120]}",
-                "prompt": f"{style} cinematic storyboard scene, script aligned, emotional visual storytelling, consistent characters, warm cinematic composition",
-                "background": "location-based setting informed by the script",
-                "camera": "tracked wide shot with subtle motion",
-                "duration": max(6, min(18, len(narration.split()) // 4 + 6)),
+                "narration": narration,
+                "visual_description": f"{style} scene set in a cinematic environment, matching the story beat and mood.",
+                "prompt": f"{style} cinematic storyboard scene with consistent characters, script-aligned composition, warm lighting, and emotional storytelling.",
+                "background": "Script-informed environment and historical or modern setting.",
+                "camera": "wide establishing shot with subtle motion",
+                "duration": max(6, min(18, len(clean_paragraph.split()) // 4 + 8)),
                 "subtitle_text": narration[:160],
                 "character_ids": [],
                 "status": "planned",
             }
         )
     return scenes
-
-
-def format_scene_title(script_excerpt: str) -> str:
-    words = re.findall(r"[A-Za-z0-9]+", script_excerpt)
-    if not words:
-        return "Untitled Scene"
-    title = " ".join(words[:5])
-    return title.title()

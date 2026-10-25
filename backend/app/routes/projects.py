@@ -11,7 +11,7 @@ from app.models import Asset
 def save_upload(project_id: int, file: UploadFile, kind: str) -> Asset:
     storage_root = Path(__file__).resolve().parents[1] / "data" / "uploads"
     storage_root.mkdir(parents=True, exist_ok=True)
-    safe_name = file.filename.replace("/", "_").replace("\\", "_")
+    safe_name = file.filename.replace("/", "_").replace("\\", "_") if file.filename else "upload.bin"
     target = storage_root / safe_name
     content = file.file.read()
     target.write_bytes(content)

@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime
-from typing import List
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -27,17 +24,17 @@ def list_projects(db: Session = Depends(get_db)) -> list[dict]:
     projects = db.query(Project).order_by(Project.created_at.desc()).all()
     return [
         {
-            "id": p.id,
-            "name": p.name,
-            "style": p.style,
-            "description": p.description,
-            "script": p.script,
-            "status": p.status,
-            "duration_goal": p.duration_goal,
-            "aspect_ratio": p.aspect_ratio,
-            "created_at": p.created_at.isoformat() if p.created_at else None,
+            "id": project.id,
+            "name": project.name,
+            "style": project.style,
+            "description": project.description,
+            "script": project.script,
+            "status": project.status,
+            "duration_goal": project.duration_goal,
+            "aspect_ratio": project.aspect_ratio,
+            "created_at": project.created_at.isoformat() if project.created_at else None,
         }
-        for p in projects
+        for project in projects
     ]
 
 
@@ -52,8 +49,7 @@ def create_project(payload: ProjectCreate, db: Session = Depends(get_db)) -> dic
         status="draft",
     )
     db.add(project)
-    db.commit()
-    db.refresh(project)
+    db.commit(); db.refresh(project)
     return {"id": project.id, "name": project.name, "style": project.style, "status": project.status}
 
 
@@ -81,23 +77,11 @@ def update_project(project_id: int, payload: ProjectUpdate, db: Session = Depend
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    if payload.name is not None:
-        project.name = payload.name
-    if payload.style is not None:
-        project.style = payload.style
-    if payload.description is not None:
-        project.description = payload.description
-    if payload.script is not None:
-        project.script = payload.script
-    if payload.status is not None:
-        project.status = payload.status
-    if payload.duration_goal is not None:
-        project.duration_goal = payload.duration_goal
-    if payload.aspect_ratio is not None:
-        project.aspect_ratio = payload.aspect_ratio
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        if value is not None:
+            setattr(project, field, value)
 
-    db.commit()
-    db.refresh(project)
+    db.commit(); db.refresh(project)
     return {"status": "updated", "project_id": project.id}
 
 

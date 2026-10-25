@@ -54,23 +54,22 @@ def generate_scenes(project_id: int, db: Session = Depends(get_db)) -> dict:
         raise HTTPException(status_code=400, detail="Project script is empty")
 
     breakdown = build_scene_breakdown(project.script, project.style)
-    existing = db.query(Scene).filter(Scene.project_id == project_id).all()
-    for item in existing:
-        db.delete(item)
+    for scene in db.query(Scene).filter(Scene.project_id == project_id).all():
+        db.delete(scene)
     db.commit()
 
-    for idx, scene_payload in enumerate(breakdown, start=1):
+    for idx, payload in enumerate(breakdown, start=1):
         record = Scene(
             project_id=project_id,
-            title=scene_payload["title"],
-            narration=str(scene_payload["narration"]),
-            visual_description=str(scene_payload["visual_description"]),
-            prompt=str(scene_payload["prompt"]),
-            background=str(scene_payload["background"]),
-            camera=str(scene_payload["camera"]),
-            duration=int(scene_payload["duration"]),
+            title=str(payload["title"]),
+            narration=str(payload["narration"]),
+            visual_description=str(payload["visual_description"]),
+            prompt=str(payload["prompt"]),
+            background=str(payload["background"]),
+            camera=str(payload["camera"]),
+            duration=int(payload["duration"]),
             order_index=idx,
-            subtitle_text=str(scene_payload["subtitle_text"]),
+            subtitle_text=str(payload["subtitle_text"]),
             status="planned",
         )
         db.add(record)
@@ -100,8 +99,7 @@ def create_scene(project_id: int, payload: ScenePayload, db: Session = Depends(g
     )
     scene.set_character_ids(payload.character_ids)
     db.add(scene)
-    db.commit()
-    db.refresh(scene)
+    db.commit(); db.refresh(scene)
     return {"id": scene.id, "title": scene.title, "status": scene.status}
 
 
@@ -110,6 +108,7 @@ def update_scene(project_id: int, scene_id: int, payload: dict, db: Session = De
     scene = db.query(Scene).filter(Scene.id == scene_id, Scene.project_id == project_id).first()
     if not scene:
         raise HTTPException(status_code=404, detail="Scene not found")
+
     for field in ["title", "narration", "visual_description", "prompt", "background", "camera", "subtitle_text", "status"]:
         if field in payload:
             setattr(scene, field, payload[field])
@@ -117,5 +116,6 @@ def update_scene(project_id: int, scene_id: int, payload: dict, db: Session = De
         scene.duration = int(payload["duration"])
     if "character_ids" in payload:
         scene.set_character_ids(payload["character_ids"])
+
     db.commit()
     return {"status": "updated", "scene_id": scene.id}

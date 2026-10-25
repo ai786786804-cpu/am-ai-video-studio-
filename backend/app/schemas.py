@@ -36,17 +36,6 @@ class ScenePayload(BaseModel):
     character_ids: List[int] = []
 
 
-class AssetUploadResponse(BaseModel):
-    id: int
-    name: str
-    kind: str
-    file_path: str
-
-
-class RenderJobCreate(BaseModel):
-    project_id: int
-
-
 class ProviderConfigPayload(BaseModel):
     provider_name: str
     api_key: str = ""

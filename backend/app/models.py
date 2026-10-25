@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import List
 
-from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text, JSON
+from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text
 
 from app.database import Base
 
@@ -75,7 +75,7 @@ class Asset(Base):
     id = Column(Integer, primary_key=True, index=True)
     project_id = Column(Integer, index=True)
     name = Column(String(255), nullable=False)
-    kind = Column(String(80), nullable=False)  # image, video, audio, subtitle
+    kind = Column(String(80), nullable=False)
     file_path = Column(String(500), nullable=False)
     mime_type = Column(String(120), default="application/octet-stream")
     size_bytes = Column(Integer, default=0)

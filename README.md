@@ -1,18 +1,18 @@
 # A M AI Studio
 
-A professional AI-powered video production platform for turning scripts into cinematic storyboards, narrated scenes, and rendered MP4 videos.
+A professional AI-powered video creation platform for turning scripts into cinematic storyboards, narrated scenes, and rendered MP4 videos.
 
-## Features
+## Features implemented
 
 - Responsive dashboard and project workspace
-- Script analysis and storyboard generation
-- Character library and style presets
-- Scene management, asset assignment, timeline editing
-- Audio and subtitle settings
-- FFmpeg-based video render pipeline with validation
-- Provider abstraction for AI services
-- SQLite-backed persistence for local development
-- Demo mode when no external providers are configured
+- New project creation and project persistence
+- Script analysis workflow with scene breakdown generation
+- Character-centric project data model
+- Asset uploads and media library
+- Timeline scene management
+- FFmpeg render job support with validation and truthful error states
+- Provider configuration storage for AI integrations
+- Demo-mode workflow without paid AI providers
 
 ## Stack
 
@@ -20,11 +20,9 @@ A professional AI-powered video production platform for turning scripts into cin
 - Backend: FastAPI + Python
 - Database: SQLite + SQLAlchemy
 - Rendering: FFmpeg / FFprobe
-- Testing: Pytest
+- Testing: Pytest (ready for workflow tests)
 
-## Quick start
-
-### 1) Backend
+## Start backend
 
 ```bash
 cd backend
@@ -34,7 +32,7 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### 2) Frontend
+## Start frontend
 
 ```bash
 cd frontend
@@ -42,9 +40,7 @@ npm install
 npm run dev -- --host 0.0.0.0 --port 5173
 ```
 
-### 3) Open the app
-
-Visit:
+## Open the app
 
 - Frontend: http://localhost:5173
 - API docs: http://localhost:8000/docs
@@ -58,18 +54,10 @@ ELEVENLABS_API_KEY=
 STABILITY_API_KEY=
 ```
 
-Only set values for providers you actually use. The app remains usable in demo mode without credentials.
+These are optional. The app can run in demo mode when providers are not configured.
 
 ## Notes
 
-- The project uses SQLite for easy local development and can be migrated to PostgreSQL later.
-- Video export depends on FFmpeg being installed on the host machine.
-- If FFmpeg or provider credentials are missing, the app will expose honest error states instead of fake success.
-
-## Future enhancements
-
-- PostgreSQL migration
-- Job queue with Celery/Redis
-- S3-compatible storage
-- Real LLM, TTS, and image-generation adapters
-- Advanced multi-track editing and subtitle timing validation
+- SQLite is used for development simplicity and can be migrated to Postgres later.
+- FFmpeg output is generated only when FFmpeg is installed and valid.
+- The app intentionally reports errors when external services or rendering dependencies are unavailable.

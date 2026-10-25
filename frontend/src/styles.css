@@ -1,0 +1,371 @@
+import { useEffect, useMemo, useState } from 'react';
+
+type Project = {
+  id: number;
+  name: string;
+  style: string;
+  description: string;
+  script: string;
+  status: string;
+  duration_goal: number;
+  aspect_ratio: string;
+};
+
+type Scene = {
+  id: number;
+  title: string;
+  narration: string;
+  visual_description: string;
+  prompt: string;
+  background: string;
+  camera: string;
+  duration: number;
+  subtitle_text: string;
+  status: string;
+  generated_asset?: string;
+};
+
+type Asset = {
+  id: number;
+  name: string;
+  kind: string;
+  file_path: string;
+  source: string;
+  license: string;
+  size_bytes: number;
+};
+
+const API_BASE = 'http://localhost:8000/api';
+
+const sampleScript = `In the quiet hours before dawn, a young archivist enters the old city archives. She carries a map torn at the corners and a lantern that flickers in the cold air. Each shelf holds fragments of forgotten memory, and the story of a kingdom begins to emerge. The door opens, the dust lifts, and the city breathes again in the light of a rediscovered truth.`;
+
+export default function App() {
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [scenes, setScenes] = useState<Scene[]>([]);
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [newProjectName, setNewProjectName] = useState('');
+  const [newProjectStyle, setNewProjectStyle] = useState('Stickman');
+  const [scriptText, setScriptText] = useState(sampleScript);
+  const [status, setStatus] = useState('Ready');
+  const [loading, setLoading] = useState(false);
+
+  const activeStyle = useMemo(() => selectedProject?.style ?? newProjectStyle, [selectedProject, newProjectStyle]);
+
+  const loadProjects = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/projects`);
+      if (!res.ok) throw new Error('Unable to load projects');
+      const data = await res.json();
+      setProjects(data);
+      if (data.length && !selectedProjectId) {
+        setSelectedProjectId(data[0].id);
+      }
+    } catch (error) {
+      console.error(error);
+      setStatus('Backend unavailable; using local demo content.');
+    }
+  };
+
+  useEffect(() => {
+    void loadProjects();
+  }, []);
+
+  useEffect(() => {
+    if (!selectedProjectId) return;
+    const project = projects.find((item) => item.id === selectedProjectId) ?? null;
+    setSelectedProject(project);
+    if (project) {
+      setScriptText(project.script || sampleScript);
+      fetchScenes(project.id);
+      fetchAssets(project.id);
+    }
+  }, [selectedProjectId, projects]);
+
+  const fetchScenes = async (projectId: number) => {
+    try {
+      const res = await fetch(`${API_BASE}/scenes/project/${projectId}`);
+      if (!res.ok) throw new Error('Unable to load scenes');
+      const data = await res.json();
+      setScenes(data);
+    } catch (error) {
+      console.error(error);
+      setScenes([]);
+    }
+  };
+
+  const fetchAssets = async (projectId: number) => {
+    try {
+      const res = await fetch(`${API_BASE}/assets/project/${projectId}`);
+      if (!res.ok) throw new Error('Unable to load assets');
+      const data = await res.json();
+      setAssets(data);
+    } catch (error) {
+      console.error(error);
+      setAssets([]);
+    }
+  };
+
+  const createProject = async () => {
+    if (!newProjectName.trim()) {
+      setStatus('Project name is required.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/projects`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newProjectName,
+          style: newProjectStyle,
+          description: 'New documentary style project',
+          duration_goal: 60,
+          aspect_ratio: '16:9',
+        }),
+      });
+      if (!res.ok) throw new Error('Could not create project');
+      const created = await res.json();
+      setSelectedProjectId(created.id);
+      setNewProjectName('');
+      setStatus(`Project “${created.name}” created.`);
+      await loadProjects();
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Project creation failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const saveScript = async () => {
+    if (!selectedProjectId) {
+      setStatus('Select or create a project first.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/projects/${selectedProjectId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          script: scriptText,
+          style: activeStyle,
+        }),
+      });
+      if (!res.ok) throw new Error('Could not save script');
+      setStatus('Script saved to project.');
+      await loadProjects();
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Script save failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const analyzeScript = async () => {
+    if (!selectedProjectId) {
+      setStatus('Create a project first.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/projects/${selectedProjectId}/script-analysis`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ script: scriptText, style: activeStyle }),
+      });
+      if (!res.ok) throw new Error('Script analysis failed');
+      const result = await res.json();
+      setStatus(`Scene breakdown created: ${result.scene_count} scenes.`);
+      const scenesResult = await fetch(`${API_BASE}/scenes/project/${selectedProjectId}/generate`, { method: 'POST' });
+      if (!scenesResult.ok) throw new Error('Scene generation failed');
+      const sceneData = await scenesResult.json();
+      setStatus(`Generated ${sceneData.count} storyboard scenes for the project.`);
+      await fetchScenes(selectedProjectId);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Unknown analysis error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const renderProject = async () => {
+    if (!selectedProjectId) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/jobs/render/${selectedProjectId}`, { method: 'POST' });
+      const result = await res.json();
+      if (result.status === 'completed') {
+        setStatus(`Render complete: ${result.output_path}`);
+      } else {
+        setStatus(result.error || 'Render could not complete.');
+      }
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Render failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="app-shell">
+      <aside className="sidebar">
+        <div className="brand">
+          <div className="brand-mark">AM</div>
+          <div>
+            <h1>A M AI Studio</h1>
+            <small>TURN IDEAS INTO VISUAL STORIES</small>
+          </div>
+        </div>
+
+        <nav className="nav-list">
+          <button className="nav-item active">Dashboard</button>
+          <button className="nav-item">New Project</button>
+          <button className="nav-item">Script Analyzer</button>
+          <button className="nav-item">Character Library</button>
+          <button className="nav-item">Storyboard</button>
+          <button className="nav-item">Timeline</button>
+          <button className="nav-item">Render Queue</button>
+          <button className="nav-item">Settings</button>
+        </nav>
+
+        <div className="status-panel">
+          <span>Workflow</span>
+          <strong>{status}</strong>
+          {loading && <em>Working…</em>}
+        </div>
+      </aside>
+
+      <main className="main-panel">
+        <header className="topbar">
+          <div>
+            <p className="eyebrow">Creative workspace</p>
+            <h2>Project dashboard</h2>
+          </div>
+          <button className="primary-button" onClick={createProject}>Create project</button>
+        </header>
+
+        <section className="overview-grid">
+          <div className="card metric-card">
+            <label>Projects</label>
+            <strong>{projects.length}</strong>
+          </div>
+          <div className="card metric-card">
+            <label>Scenes</label>
+            <strong>{scenes.length}</strong>
+          </div>
+          <div className="card metric-card">
+            <label>Assets</label>
+            <strong>{assets.length}</strong>
+          </div>
+          <div className="card metric-card">
+            <label>Style</label>
+            <strong>{activeStyle}</strong>
+          </div>
+        </section>
+
+        <section className="workspace-grid">
+          <div className="panel large-panel">
+            <div className="panel-header">
+              <h3>Projects</h3>
+            </div>
+            <div className="project-list">
+              {projects.length ? projects.map((project) => (
+                <button
+                  key={project.id}
+                  className={`project-item ${selectedProjectId === project.id ? 'selected' : ''}`}
+                  onClick={() => setSelectedProjectId(project.id)}
+                >
+                  <div>
+                    <strong>{project.name}</strong>
+                    <span>{project.style}</span>
+                  </div>
+                  <small>{project.status}</small>
+                </button>
+              )) : (
+                <div className="empty-state">No projects yet.</div>
+              )}
+            </div>
+
+            <div className="project-form">
+              <input
+                value={newProjectName}
+                placeholder="New project name"
+                onChange={(event) => setNewProjectName(event.target.value)}
+              />
+              <select value={newProjectStyle} onChange={(event) => setNewProjectStyle(event.target.value)}>
+                <option>Stickman</option>
+                <option>2D Animation</option>
+                <option>3D Animation</option>
+                <option>Documentary Film</option>
+                <option>Movie Graphics & VFX</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="panel detail-panel">
+            <div className="panel-header">
+              <h3>Script analyzer</h3>
+            </div>
+            <textarea
+              value={scriptText}
+              onChange={(event) => setScriptText(event.target.value)}
+              rows={12}
+              placeholder="Paste or type a script here..."
+            />
+            <div className="action-row">
+              <button className="secondary-button" onClick={saveScript}>Save script</button>
+              <button className="primary-button" onClick={analyzeScript}>Analyze</button>
+            </div>
+          </div>
+        </section>
+
+        <section className="workspace-grid lower-grid">
+          <div className="panel detail-panel">
+            <div className="panel-header">
+              <h3>Storyboard</h3>
+            </div>
+            <div className="scene-list">
+              {scenes.length ? scenes.map((scene) => (
+                <div key={scene.id} className="scene-card">
+                  <div className="scene-meta">
+                    <strong>{scene.title}</strong>
+                    <span>{scene.duration}s</span>
+                  </div>
+                  <p>{scene.narration}</p>
+                  <small>{scene.visual_description}</small>
+                </div>
+              )) : (
+                <div className="empty-state">Generate scenes to see the storyboard.</div>
+              )}
+            </div>
+          </div>
+
+          <div className="panel detail-panel">
+            <div className="panel-header">
+              <h3>Media & render</h3>
+            </div>
+            <div className="media-stack">
+              {assets.length ? assets.map((asset) => (
+                <div key={asset.id} className="asset-row">
+                  <span>{asset.name}</span>
+                  <small>{asset.kind}</small>
+                </div>
+              )) : (
+                <div className="empty-state">Upload image or audio assets to populate the library.</div>
+              )}
+            </div>
+            <div className="action-row">
+              <button className="secondary-button" onClick={() => setStatus('Upload support is available through the backend API.')}>Upload asset</button>
+              <button className="primary-button" onClick={renderProject}>Render video</button>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  );
+}
